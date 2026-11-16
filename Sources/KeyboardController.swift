@@ -121,7 +121,7 @@ final class KeyboardController {
             blocked = shouldBlock
             lastConfiguration = signature
         }
-        if blocked { status = "Internal blocking map applied" }
+        if blocked { status = "Internal blocking map written (effect unverified)" }
         else if !preferences.blocking { status = "Keyboard blocking disabled" }
         else if !externalPresent { status = "Waiting for external keyboard" }
         else { status = "Internal keyboard not detected" }
