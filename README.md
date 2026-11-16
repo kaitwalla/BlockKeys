@@ -11,7 +11,7 @@ An experimental, dependency-free macOS menu-bar keyboard utility, built for the 
 ## Build and launch (macOS 13+)
 
 ```bash
-./install.sh
+bash install.sh
 ```
 
 This builds and ad-hoc signs `~/Applications/BlockKeys.app`. There are no dependencies outside Apple's command-line tools and no privileged daemon. Approve **Accessibility** for BlockKeys when macOS asks; it is required for modifier interception.
