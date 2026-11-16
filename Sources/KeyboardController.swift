@@ -36,6 +36,14 @@ final class KeyboardController {
         if let matching { arguments += ["--matching", matching] }
         guard let data = try? JSONSerialization.data(withJSONObject: ["UserKeyMapping": mappings]),
               let json = String(data: data, encoding: .utf8) else { return false }
+        if matching == internalMatch && !mappings.isEmpty {
+            // Export exactly the payload sent to hidutil for reproducible
+            // Terminal-side diagnostics. Contains HID codes only, no key events.
+            let directory = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support/BlockKeys", isDirectory: true)
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try? data.write(to: directory.appendingPathComponent("last-internal-mapping.json"), options: .atomic)
+        }
         arguments += ["--set", json]
         command.arguments = arguments
         command.standardOutput = FileHandle.nullDevice
