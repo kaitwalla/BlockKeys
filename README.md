@@ -5,8 +5,10 @@ An experimental, dependency-free macOS menu-bar keyboard utility, built for the 
 ## Features
 
 - **Automatic internal keyboard blocking:** when an external keyboard is connected, BlockKeys uses macOS's `/usr/bin/hidutil` to map standard built-in keyboard usages to undefined HID usage `0x07:0x00`. External keyboards are not remapped. Unplugging the external keyboard restores the internal keyboard.
-- **Key remapping:** Caps Lock → Escape, Escape → Meh (Control+Option+Shift), Right Command → Hyper (Control+Option+Shift+Command). Left Command stays normal.
+- **Key remapping:** customizable source/target pairs, including Escape, Meh (Control+Option+Shift), Hyper (Control+Option+Shift+Command), ordinary keys and disabled keys. Defaults are Caps Lock → Escape, Escape → Meh, and Right Command → Hyper.
+- **Scope:** remapping defaults to **built-in keyboard only**, with an option to apply the mappings to all connected keyboards. Keyboard blocking remains built-in-only.
 - Independent menu-bar toggles for blocking and remapping. Both features default to **off** on a fresh installation.
+- **Settings window:** choose keys, manage rules, and toggle features via **⌨︎ → Settings…**.
 
 ## Build and launch (macOS 13+)
 
@@ -20,7 +22,7 @@ This builds and ad-hoc signs `~/Applications/BlockKeys.app`. There are no depend
 
 ## Experimental warnings
 
-This version has not yet been compiled or tested on a Mac by the project maintainers. The single-key `hidutil` test was successful on an M5 MacBook Air, but the **full 228-key mapping and event-tap remaps are not yet validated**.
+The earlier prototype passed M5 tests for all three key remaps and automatic keyboard blocking/restore. **This updated settings-and-scope implementation is not yet hardware-validated.**
 
 Keep your Keychron connected for the first tests. To recover the internal keyboard from Terminal, run:
 
@@ -30,12 +32,14 @@ hidutil property --matching '{"Built-In":1,"Transport":"FIFO","PrimaryUsagePage"
 
 Restarting macOS also clears `hidutil` mappings. If the menu app crashes while blocking is on, the remapping may persist until the reset command or restart. Vendor-defined function keys, Touch ID, and some nonstandard keys may not be affected.
 
-The experimental event-tap mappings may not behave correctly inside password prompts or Secure Event Input. Disable the remapping toggle if shortcuts behave unexpectedly. **Quit Superkey first**, to avoid two apps intercepting the same modifiers.
+The device-scoped remapper maps Meh/Hyper sources to intermediary F18/F19 HID keys, which a small event tap interprets. Those two F-keys are reserved while remapping is enabled. The event tap may not behave correctly inside password prompts or Secure Event Input. Disable remapping if shortcuts behave unexpectedly. **Quit Superkey first**, to avoid two apps intercepting the same modifiers.
 
 ## Implementation
 
 - `Sources/KeyboardController.swift`: HID keyboard discovery and device-specific `hidutil` mappings.
 - `Sources/KeyRemapper.swift`: local keyboard event tap for modifier remaps.
+- `Sources/Configuration.swift`: persisted preferences and key catalog.
+- `Sources/SettingsView.swift`: editable settings window.
 - `Sources/main.swift`: minimal AppKit menu-bar application.
 - `Tests/`: short-duration hardware probes.
 
