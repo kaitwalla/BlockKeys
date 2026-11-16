@@ -34,6 +34,42 @@ final class KeyboardController {
         return transport == "FIFO"
     }
 
+    // launchctl submit only confirms that launchd accepted a job; it does not
+    // wait for hidutil to finish. Without this barrier, an old toggle can
+    // overwrite the latest keyboard map seconds later.
+    private func waitForMappingJob(_ label: String) -> Bool {
+        let until = Date().addingTimeInterval(3)
+        let expression = try! NSRegularExpression(pattern: #"LastExitStatus[^=]*=\s*(-?\d+)"#)
+        while Date() < until {
+            let check = Process()
+            check.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            check.arguments = ["list", label]
+            let output = Pipe()
+            check.standardOutput = output
+            check.standardError = FileHandle.nullDevice
+            do {
+                try check.run()
+                let data = output.fileHandleForReading.readDataToEndOfFile()
+                check.waitUntilExit()
+                if check.terminationStatus == 0,
+                   let text = String(data: data, encoding: .utf8),
+                   let match = expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                   let range = Range(match.range(at: 1), in: text),
+                   let code = Int(text[range]) {
+                    if code == 0 { return true }
+                    lastApplyError = "hidutil exited \(code)"
+                    return false
+                }
+            } catch {
+                lastApplyError = "could not inspect launchd job: \(error.localizedDescription)"
+                return false
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        lastApplyError = "hidutil did not finish within 3 seconds"
+        return false
+    }
+
     private func runHidutil(_ mappings: [[String: UInt64]], matching: String?) -> Bool {
         guard let data = try? JSONSerialization.data(withJSONObject: ["UserKeyMapping": mappings]),
               let json = String(data: data, encoding: .utf8) else { return false }
@@ -84,8 +120,8 @@ final class KeyboardController {
                 try? FileManager.default.removeItem(at: logs)
                 return false
             }
-            // submit returns before hidutil finishes. Give it time to run,
-            // then clear the completed launchd job and its diagnostic logs.
+            // Remove the completed job after the next command can no longer
+            // race with it. A timer also cleans up failed/timed-out jobs.
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) {
                 let cleanup = Process()
                 cleanup.executableURL = URL(fileURLWithPath: "/bin/launchctl")
@@ -95,7 +131,7 @@ final class KeyboardController {
                 if (try? cleanup.run()) != nil { cleanup.waitUntilExit() }
                 try? FileManager.default.removeItem(at: logs)
             }
-            return true
+            return waitForMappingJob(label)
         } catch {
             lastApplyError = "launchctl could not start: \(error.localizedDescription)"
             try? FileManager.default.removeItem(at: logs)
