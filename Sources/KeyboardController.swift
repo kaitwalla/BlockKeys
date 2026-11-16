@@ -53,7 +53,7 @@ final class KeyboardController {
                 check.waitUntilExit()
                 if check.terminationStatus == 0,
                    let text = String(data: data, encoding: .utf8),
-                   let match = expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                   let match = expression.firstMatch(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text)),
                    let range = Range(match.range(at: 1), in: text),
                    let code = Int(text[range]) {
                     if code == 0 { return true }
