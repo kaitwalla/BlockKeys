@@ -4,7 +4,7 @@ An experimental, dependency-free macOS menu-bar keyboard utility, built for the 
 
 ## Features
 
-- **Automatic internal keyboard blocking:** when an external keyboard is connected, BlockKeys uses macOS's HID event-service API to map standard built-in keyboard usages to undefined HID usage `0x07:0x00`. External keyboards are not remapped. Unplugging the external keyboard restores the internal keyboard.
+- **Automatic internal keyboard blocking:** when an external keyboard is connected, BlockKeys asks `launchd` to run macOS's `hidutil` and map standard built-in keyboard usages to undefined HID usage `0x07:0x00`. External keyboards are not remapped. Unplugging the external keyboard restores the internal keyboard.
 - **Key remapping:** customizable source/target pairs, including Escape, Meh (Control+Option+Shift), Hyper (Control+Option+Shift+Command), ordinary keys and disabled keys. Defaults are Caps Lock → Escape, Escape → Meh, and Right Command → Hyper.
 - **Scope:** remapping defaults to **built-in keyboard only**, with an option to apply the mappings to all connected keyboards. Keyboard blocking remains built-in-only.
 - Independent menu-bar toggles for blocking and remapping. Both features default to **off** on a fresh installation.
@@ -16,13 +16,13 @@ An experimental, dependency-free macOS menu-bar keyboard utility, built for the 
 bash install.sh
 ```
 
-This builds and ad-hoc signs `~/Applications/BlockKeys.app`. There are no dependencies outside Apple's command-line tools and no privileged daemon. Approve **Accessibility** and **Input Monitoring** for BlockKeys when macOS asks; they are required for modifier interception and HID access.
+This builds and ad-hoc signs `~/Applications/BlockKeys.app`. There are no dependencies outside Apple's command-line tools, no `sudo`, and no persistent privileged daemon. Approve **Accessibility** for BlockKeys to use its shortcut event tap. If character-key mappings are accepted but ignored, grant **Input Monitoring** to `/usr/bin/hidutil` in System Settings → Privacy & Security. Mapping commands run as transient `launchd` jobs, separate from the app's privacy context.
 
 **Do not install the old privileged helper:** it did not actually suppress input on the M5. The new installer does not use `sudo` or install a LaunchDaemon.
 
 ## Experimental warnings
 
-The earlier prototype passed M5 tests for all three key remaps and automatic keyboard blocking/restore. The settings-and-scope implementation exposed a permission-context bug: modifier remaps worked, but ordinary character-key maps applied by a `hidutil` subprocess were silently ineffective. **The new direct HID API backend is experimental and needs M5 validation.**
+The earlier prototype passed M5 tests for all three key remaps and automatic keyboard blocking/restore. The settings-and-scope implementation exposed a permission-context bug: modifier remaps worked, but ordinary character-key maps applied from the app were silently ineffective. A one-shot `launchd`-owned `hidutil` probe successfully blocked the keyboard on the M5. **The integrated launchd backend still needs testing, especially disconnect/restore and rapid toggles.**
 
 Keep your Keychron connected for the first tests. To recover the internal keyboard from Terminal, run:
 
@@ -37,7 +37,7 @@ The device-scoped remapper maps Meh/Hyper sources to intermediary F18/F19 HID ke
 ## Implementation
 
 - `Sources/KeyboardController.swift`: HID keyboard discovery and device-specific mapping management.
-- `Sources/HIDMappingBridge.m`: minimal Objective-C wrapper around the IOHID event-service APIs documented by Apple's TN2450. Symbols are loaded at runtime so unsupported macOS versions fail gracefully.
+- `Sources/HIDMappingBridge.m`: experimental native HID backend, available for debugging with `BLOCKKEYS_USE_NATIVE_HID=1`; not used by default because accepted mappings were ineffective on the tested Mac.
 - `Sources/KeyRemapper.swift`: local keyboard event tap for modifier remaps.
 - `Sources/Configuration.swift`: persisted preferences and key catalog.
 - `Sources/SettingsView.swift`: editable settings window.
