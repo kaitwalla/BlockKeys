@@ -1,39 +1,42 @@
 # BlockKeys
 
-A minimal, dependency-free macOS menu-bar app that disables the internal MacBook keyboard when an external keyboard is connected. Click **⌨︎** in the menu bar to enable or disable the behavior. The default is **off**.
+An experimental, dependency-free macOS menu-bar keyboard utility, built for the M5 MacBook Air.
 
-## Build and install
+## Features
 
-On macOS 13+ with Xcode Command Line Tools installed:
+- **Automatic internal keyboard blocking:** when an external keyboard is connected, BlockKeys uses macOS's `/usr/bin/hidutil` to map standard built-in keyboard usages to undefined HID usage `0x07:0x00`. External keyboards are not remapped. Unplugging the external keyboard restores the internal keyboard.
+- **Key remapping:** Caps Lock → Escape, Escape → Meh (Control+Option+Shift), Right Command → Hyper (Control+Option+Shift+Command). Left Command stays normal.
+- Independent menu-bar toggles for blocking and remapping. Both features default to **off** on a fresh installation.
+
+## Build and launch (macOS 13+)
 
 ```bash
-chmod +x install.sh
 ./install.sh
 ```
 
-The installer builds one Swift executable, places a menu-bar app in `/Applications`, and installs a root-owned `launchd` helper. The helper is required for `IOHIDDeviceOpen(..., kIOHIDOptionsTypeSeizeDevice)`. macOS may require you to approve **Input Monitoring** for the helper in **System Settings → Privacy & Security**. The helper polls for setting and device changes; no network access or third-party runtime is used.
+This builds and ad-hoc signs `~/Applications/BlockKeys.app`. There are no dependencies outside Apple's command-line tools and no privileged daemon. Approve **Accessibility** for BlockKeys when macOS asks; it is required for modifier interception.
 
-The helper automatically releases the internal keyboard if the external keyboard disappears, you switch the feature off, or the helper exits. Quitting the menu-bar app also turns blocking off. For an external Bluetooth keyboard, “connected” means still connected to macOS, even if it is physically elsewhere.
+**Do not install the old privileged helper:** it did not actually suppress input on the M5. The new installer does not use `sudo` or install a LaunchDaemon.
 
-**Important:** This is an untested prototype. It has **not been built or exercised on macOS hardware**. The MacBook's keyboard may share a HID device with the trackpad; this implementation might also suppress the trackpad on some hardware. Keep an external keyboard and pointing device available during testing. Depending on the model, internal keyboard identification or device seizure may fail, in which case the menu displays an error and the built-in keyboard should remain usable.
+## Experimental warnings
 
-## Remove
+This version has not yet been compiled or tested on a Mac by the project maintainers. The single-key `hidutil` test was successful on an M5 MacBook Air, but the **full 228-key mapping and event-tap remaps are not yet validated**.
+
+Keep your Keychron connected for the first tests. To recover the internal keyboard from Terminal, run:
 
 ```bash
-sudo launchctl bootout system /Library/LaunchDaemons/com.blockkeys.helper.plist
-sudo rm /Library/LaunchDaemons/com.blockkeys.helper.plist
-sudo rm /Library/PrivilegedHelperTools/BlockKeysHelper
-sudo rm -r /Applications/BlockKeys.app
+hidutil property --matching '{"Built-In":1,"Transport":"FIFO","PrimaryUsagePage":1,"PrimaryUsage":6}' --set '{"UserKeyMapping":[]}'
 ```
 
-Your preference file remains at `~/Library/Application Support/BlockKeys/settings.json` unless you remove it manually.
+Restarting macOS also clears `hidutil` mappings. If the menu app crashes while blocking is on, the remapping may persist until the reset command or restart. Vendor-defined function keys, Touch ID, and some nonstandard keys may not be affected.
 
-## Architecture
+The experimental event-tap mappings may not behave correctly inside password prompts or Secure Event Input. Disable the remapping toggle if shortcuts behave unexpectedly. **Quit Superkey first**, to avoid two apps intercepting the same modifiers.
 
-- **Menu app:** unprivileged AppKit status item, JSON preference toggle.
-- **Helper:** privileged IOKit HID manager, polls approximately every 750ms, seizes only a detected internal keyboard while an external keyboard is present and blocking is enabled.
-- **Status:** helper writes a short state string to `/var/tmp/blockkeys-UID.status` for the menu-bar display. This is diagnostic only, not a control channel.
+## Implementation
 
-## License
+- `Sources/KeyboardController.swift`: HID keyboard discovery and device-specific `hidutil` mappings.
+- `Sources/KeyRemapper.swift`: local keyboard event tap for modifier remaps.
+- `Sources/main.swift`: minimal AppKit menu-bar application.
+- `Tests/`: short-duration hardware probes.
 
-MIT (see `LICENSE`).
+MIT licensed.
