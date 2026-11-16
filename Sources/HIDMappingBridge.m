@@ -23,8 +23,8 @@ int BKApplyHIDMappings(const char *json, int internalOnly) {
     IOHIDManagerRef manager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
     if (manager) {
         IOHIDManagerSetDeviceMatching(manager, (__bridge CFDictionaryRef)@{
-            (__bridge NSString *)kIOHIDDeviceUsagePageKey: @1,
-            (__bridge NSString *)kIOHIDDeviceUsageKey: @6
+            [NSString stringWithUTF8String:kIOHIDDeviceUsagePageKey]: @1,
+            [NSString stringWithUTF8String:kIOHIDDeviceUsageKey]: @6
         });
         IOReturn opened = IOHIDManagerOpen(manager, kIOHIDOptionsTypeNone);
         CFSetRef deviceSet = opened == kIOReturnSuccess ? IOHIDManagerCopyDevices(manager) : NULL;
