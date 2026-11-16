@@ -10,6 +10,6 @@ jobs:
       - name: Validate installer
         run: bash -n install.sh
       - name: Compile app and helper
-        run: swiftc -O -framework AppKit -framework IOKit Sources/main.swift -o /tmp/BlockKeys
+        run: swiftc -O -framework AppKit -framework IOKit Sources/*.swift -o /tmp/BlockKeys
       - name: Validate app plist
         run: plutil -lint Info.plist
