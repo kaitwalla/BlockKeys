@@ -10,6 +10,8 @@ jobs:
       - name: Validate installer
         run: bash -n install.sh
       - name: Compile app and helper
-        run: swiftc -O -framework AppKit -framework IOKit Sources/*.swift -o /tmp/BlockKeys
+        run: |
+          clang -fobjc-arc -c Sources/HIDMappingBridge.m -o /tmp/HIDMappingBridge.o
+          swiftc -O -framework AppKit -framework IOKit Sources/*.swift /tmp/HIDMappingBridge.o -o /tmp/BlockKeys
       - name: Validate app plist
         run: plutil -lint Info.plist
