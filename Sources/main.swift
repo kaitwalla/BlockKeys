@@ -63,6 +63,6 @@ private final class BlockKeysApp: NSObject, NSApplicationDelegate {
 }
 
 let app = NSApplication.shared
-let delegate = BlockKeysApp()
+private let delegate = BlockKeysApp()
 app.delegate = delegate
 app.run()
