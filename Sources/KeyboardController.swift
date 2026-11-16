@@ -1,6 +1,9 @@
 import Foundation
 import IOKit.hid
 
+@_silgen_name("BKApplyHIDMappings")
+private func BKApplyHIDMappings(_ json: UnsafePointer<CChar>, _ internalOnly: Int32) -> Int32
+
 // HID remapping is device-specific. CGEventTap only handles the synthetic F18/F19
 // signals, so physical external keyboards are untouched in internal-only mode.
 final class KeyboardController {
@@ -11,6 +14,7 @@ final class KeyboardController {
     private var globalMappingActive = false
     private(set) var blocked = false
     private(set) var status = "Starting"
+    private var lastNativeResult: Int32 = 0
 
     init(preferences: Preferences) {
         self.preferences = preferences
@@ -44,6 +48,12 @@ final class KeyboardController {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try? data.write(to: directory.appendingPathComponent("last-internal-mapping.json"), options: .atomic)
         }
+        lastNativeResult = json.withCString { BKApplyHIDMappings($0, matching == internalMatch ? 1 : 0) }
+        if lastNativeResult > 0 { return true }
+
+        // Explicit compatibility escape hatch for diagnostics only. The old
+        // subprocess reported success without applying character-key maps.
+        guard ProcessInfo.processInfo.environment["BLOCKKEYS_USE_HIDUTIL"] == "1" else { return false }
         arguments += ["--set", json]
         command.arguments = arguments
         command.standardOutput = FileHandle.nullDevice
@@ -97,21 +107,21 @@ final class KeyboardController {
             // Clear global overrides when switching back to built-in-only mode.
             if !global.isEmpty || globalMappingActive {
                 guard runHidutil(global, matching: nil) else {
-                    status = "Failed to update global mappings"
+                    status = "HID global mapping failed (\(lastNativeResult))"
                     return
                 }
                 globalMappingActive = !global.isEmpty
             }
             if internalPresent {
                 guard runHidutil(local, matching: internalMatch) else {
-                    status = "Failed to update internal mappings"
+                    status = "HID internal mapping failed (\(lastNativeResult))"
                     return
                 }
             }
             blocked = shouldBlock
             lastConfiguration = signature
         }
-        if blocked { status = "Internal keyboard blocked" }
+        if blocked { status = "Internal blocking map applied" }
         else if !preferences.blocking { status = "Keyboard blocking disabled" }
         else if !externalPresent { status = "Waiting for external keyboard" }
         else { status = "Internal keyboard not detected" }
