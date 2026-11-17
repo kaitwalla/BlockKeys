@@ -23,6 +23,12 @@ final class KeyboardController {
         _ = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
     }
 
+    // macOS may discard a device's UserKeyMapping during sleep without
+    // changing the list of connected keyboards. Force poll() to reapply it.
+    func invalidateConfiguration() {
+        lastConfiguration = nil
+    }
+
     private func internalDevice(_ device: IOHIDDevice) -> Bool {
         guard let builtin = IOHIDDeviceGetProperty(device, "Built-In" as CFString) as? NSNumber,
               builtin.boolValue else { return false }
@@ -194,10 +200,10 @@ final class KeyboardController {
             blocked = shouldBlock
             lastConfiguration = signature
         }
-        if blocked { status = "Internal blocking requested via launchd" }
-        else if !preferences.blocking { status = "Keyboard blocking disabled" }
+        if blocked { status = "Blocking active" }
+        else if !preferences.blocking { status = "Blocking off" }
         else if !externalPresent { status = "Waiting for external keyboard" }
-        else { status = "Internal keyboard not detected" }
+        else { status = "Built-in keyboard not found" }
     }
 
     private func internalMappingIsEmpty() -> Bool {
