@@ -14,6 +14,7 @@ private final class BlockKeysApp: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var settingsWindow: NSWindow?
     private var wakeGeneration = 0
+    private var lastWakeNotification = Date.distantPast
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -39,17 +40,29 @@ private final class BlockKeysApp: NSObject, NSApplicationDelegate {
             name: NSWorkspace.didWakeNotification,
             object: nil
         )
+        // Opening the lid can wake the display without a corresponding full
+        // system-wake notification. Both are relevant to HID reinitialization.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceDidWake(_:)),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.refresh() }
         refresh()
     }
 
     @objc private func workspaceDidWake(_ notification: Notification) {
+        // A single lid-open can emit both notifications. Keep one recovery
+        // schedule instead of interleaving two sets of HID mapping writes.
+        guard Date().timeIntervalSince(lastWakeNotification) > 2 else { return }
+        lastWakeNotification = Date()
         wakeGeneration += 1
         let generation = wakeGeneration
         // HID keyboard services may reappear after the wake notification.
         // Retry a few times, but always respect the *current* settings and
         // connected devices when each attempt runs.
-        for delay in [1.0, 3.0, 7.0] {
+        for delay in [1.0, 3.0, 7.0, 15.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.wakeGeneration == generation else { return }
                 self.manager.invalidateConfiguration()
