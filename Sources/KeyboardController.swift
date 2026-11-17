@@ -23,6 +23,12 @@ final class KeyboardController {
         _ = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
     }
 
+    // macOS may discard a device's UserKeyMapping during sleep without
+    // changing the list of connected keyboards. Force poll() to reapply it.
+    func invalidateConfiguration() {
+        lastConfiguration = nil
+    }
+
     private func internalDevice(_ device: IOHIDDevice) -> Bool {
         guard let builtin = IOHIDDeviceGetProperty(device, "Built-In" as CFString) as? NSNumber,
               builtin.boolValue else { return false }
