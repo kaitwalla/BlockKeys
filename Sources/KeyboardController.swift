@@ -1,9 +1,6 @@
 import Foundation
 import IOKit.hid
 
-@_silgen_name("BKApplyHIDMappings")
-private func BKApplyHIDMappings(_ json: UnsafePointer<CChar>, _ internalOnly: Int32) -> Int32
-
 // HID remapping is device-specific. CGEventTap only handles the synthetic F18/F19
 // signals, so physical external keyboards are untouched in internal-only mode.
 final class KeyboardController {
@@ -14,7 +11,6 @@ final class KeyboardController {
     private var globalMappingActive = false
     private(set) var blocked = false
     private(set) var status = "Starting"
-    private var lastNativeResult: Int32 = 0
     private var lastApplyError = "unknown"
 
     init(preferences: Preferences) {
@@ -100,17 +96,8 @@ final class KeyboardController {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try? data.write(to: directory.appendingPathComponent("last-internal-mapping.json"), options: .atomic)
         }
-        // The direct HID property APIs accept and store character-key maps on
-        // current macOS, but don't activate them in BlockKeys' TCC context.
-        // launchd-owned hidutil *does* activate the same payload on the M5 Air.
-        // Launch it as a short-lived job so Input Monitoring is attributed to
-        // /usr/bin/hidutil, not to an inherited app subprocess.
-        if ProcessInfo.processInfo.environment["BLOCKKEYS_USE_NATIVE_HID"] == "1" {
-            lastNativeResult = json.withCString { BKApplyHIDMappings($0, matching == internalMatch ? 1 : 0) }
-            lastApplyError = "native HID result \(lastNativeResult)"
-            return lastNativeResult > 0
-        }
-
+        // A direct HID property write is stored but not activated on this Mac.
+        // Run hidutil under launchd's Input Monitoring context instead.
         let label = "org.blockkeys.mapping.\(UUID().uuidString.lowercased())"
         let logs = FileManager.default.temporaryDirectory
             .appendingPathComponent("BlockKeys-\(UUID().uuidString)", isDirectory: true)
