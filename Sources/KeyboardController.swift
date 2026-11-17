@@ -70,6 +70,25 @@ final class KeyboardController {
         return false
     }
 
+    // Cleanup must finish before this call returns. A delayed callback is
+    // cancelled when the menu app quits, leaving orphaned launchd jobs behind.
+    private func removeMappingJob(_ label: String) -> Bool {
+        let cleanup = Process()
+        cleanup.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        cleanup.arguments = ["remove", label]
+        cleanup.standardOutput = FileHandle.nullDevice
+        cleanup.standardError = FileHandle.nullDevice
+        do {
+            try cleanup.run()
+            cleanup.waitUntilExit()
+            if cleanup.terminationStatus == 0 { return true }
+            lastApplyError = "launchctl remove exited \(cleanup.terminationStatus)"
+        } catch {
+            lastApplyError = "launchctl remove failed: \(error.localizedDescription)"
+        }
+        return false
+    }
+
     private func runHidutil(_ mappings: [[String: UInt64]], matching: String?) -> Bool {
         guard let data = try? JSONSerialization.data(withJSONObject: ["UserKeyMapping": mappings]),
               let json = String(data: data, encoding: .utf8) else { return false }
@@ -117,21 +136,14 @@ final class KeyboardController {
             command.waitUntilExit()
             guard command.terminationStatus == 0 else {
                 lastApplyError = "launchctl exited \(command.terminationStatus)"
+                _ = removeMappingJob(label)
                 try? FileManager.default.removeItem(at: logs)
                 return false
             }
-            // Remove the completed job after the next command can no longer
-            // race with it. A timer also cleans up failed/timed-out jobs.
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) {
-                let cleanup = Process()
-                cleanup.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-                cleanup.arguments = ["remove", label]
-                cleanup.standardOutput = FileHandle.nullDevice
-                cleanup.standardError = FileHandle.nullDevice
-                if (try? cleanup.run()) != nil { cleanup.waitUntilExit() }
-                try? FileManager.default.removeItem(at: logs)
-            }
-            return waitForMappingJob(label)
+            let succeeded = waitForMappingJob(label)
+            let removed = removeMappingJob(label)
+            try? FileManager.default.removeItem(at: logs)
+            return succeeded && removed
         } catch {
             lastApplyError = "launchctl could not start: \(error.localizedDescription)"
             try? FileManager.default.removeItem(at: logs)
