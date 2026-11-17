@@ -5,6 +5,7 @@ An experimental, dependency-free macOS menu-bar keyboard utility, built for the 
 ## Features
 
 - **Automatic internal keyboard blocking:** when an external keyboard is connected, BlockKeys asks `launchd` to run macOS's `hidutil` and map standard built-in keyboard usages to undefined HID usage `0x07:0x00`. External keyboards are not remapped. Unplugging the external keyboard restores the internal keyboard.
+- **Wake recovery:** after the Mac wakes from sleep, BlockKeys reapplies the selected mappings as the keyboard services become available again.
 - **Key remapping:** customizable source/target pairs, including Escape, Meh (Control+Option+Shift), Hyper (Control+Option+Shift+Command), ordinary keys and disabled keys. Defaults are Caps Lock → Escape, Escape → Meh, and Right Command → Hyper.
 - **Scope:** remapping defaults to **built-in keyboard only**, with an option to apply the mappings to all connected keyboards. Keyboard blocking remains built-in-only.
 - Independent menu-bar toggles for blocking and remapping. Both features default to **off** on a fresh installation.
