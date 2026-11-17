@@ -70,10 +70,23 @@ private final class BlockKeysApp: NSObject, NSApplicationDelegate {
         settingsWindow?.makeKeyAndOrderFront(nil)
     }
 
-    @objc private func quit() {
-        manager.restore()
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard manager.restore() else {
+            let alert = NSAlert()
+            alert.alertStyle = .critical
+            alert.messageText = "Cannot safely quit BlockKeys"
+            alert.informativeText = "The built-in keyboard mapping could not be verified as cleared. Keep an external keyboard connected. You can disable blocking and retry, or restore the keyboard in Terminal with hidutil."
+            alert.addButton(withTitle: "Keep BlockKeys Running")
+            alert.runModal()
+            stateItem.title = manager.status
+            return .terminateCancel
+        }
         remapper.enabled = false
         remapper.refresh()
+        return .terminateNow
+    }
+
+    @objc private func quit() {
         NSApp.terminate(nil)
     }
 }
