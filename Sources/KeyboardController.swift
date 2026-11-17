@@ -213,11 +213,37 @@ final class KeyboardController {
         else { status = "Internal keyboard not detected" }
     }
 
-    func restore() {
-        _ = runHidutil([], matching: internalMatch)
-        if globalMappingActive { _ = runHidutil([], matching: nil) }
+    private func internalMappingIsEmpty() -> Bool {
+        let check = Process()
+        check.executableURL = URL(fileURLWithPath: "/usr/bin/hidutil")
+        check.arguments = ["property", "--matching", internalMatch, "--get", "UserKeyMapping"]
+        let output = Pipe()
+        check.standardOutput = output
+        check.standardError = FileHandle.nullDevice
+        do {
+            try check.run()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            check.waitUntilExit()
+            guard check.terminationStatus == 0,
+                  let value = String(data: data, encoding: .utf8),
+                  value.contains("UserKeyMapping") else { return false }
+            return value.range(of: #"UserKeyMapping\s+\(\s*\)"#, options: .regularExpression) != nil ||
+                value.range(of: #"UserKeyMapping\s+\(null\)"#, options: .regularExpression) != nil
+        } catch { return false }
+    }
+
+    @discardableResult func restore() -> Bool {
+        let internalRestored = runHidutil([], matching: internalMatch)
+        let globalRestored = !globalMappingActive || runHidutil([], matching: nil)
+        let verified = internalRestored && internalMappingIsEmpty()
+        guard verified && globalRestored else {
+            status = "Unable to verify keyboard restoration"
+            lastConfiguration = nil
+            return false
+        }
         blocked = false
         globalMappingActive = false
         lastConfiguration = nil
+        return true
     }
 }
