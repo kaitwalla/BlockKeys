@@ -5,8 +5,8 @@ import SwiftUI
 private final class BlockKeysApp: NSObject, NSApplicationDelegate {
     private let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
-    private let blockItem = NSMenuItem(title: "Block internal keyboard when external is connected", action: #selector(toggleBlock), keyEquivalent: "")
-    private let mapItem = NSMenuItem(title: "Enable key remapping", action: #selector(toggleMapping), keyEquivalent: "")
+    private let blockItem = NSMenuItem(title: "Block built-in keyboard", action: #selector(toggleBlock), keyEquivalent: "")
+    private let mapItem = NSMenuItem(title: "Remap keys", action: #selector(toggleMapping), keyEquivalent: "")
     private let stateItem = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
     private let preferences = Preferences()
     private lazy var manager = KeyboardController(preferences: preferences)
