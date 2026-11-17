@@ -13,6 +13,7 @@ private final class BlockKeysApp: NSObject, NSApplicationDelegate {
     private let remapper = KeyRemapper()
     private var timer: Timer?
     private var settingsWindow: NSWindow?
+    private var wakeGeneration = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -32,8 +33,29 @@ private final class BlockKeysApp: NSObject, NSApplicationDelegate {
         quit.target = self
         menu.addItem(quit)
         status.menu = menu
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceDidWake(_:)),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.refresh() }
         refresh()
+    }
+
+    @objc private func workspaceDidWake(_ notification: Notification) {
+        wakeGeneration += 1
+        let generation = wakeGeneration
+        // HID keyboard services may reappear after the wake notification.
+        // Retry a few times, but always respect the *current* settings and
+        // connected devices when each attempt runs.
+        for delay in [1.0, 3.0, 7.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.wakeGeneration == generation else { return }
+                self.manager.invalidateConfiguration()
+                self.refresh()
+            }
+        }
     }
 
     private func refresh() {
