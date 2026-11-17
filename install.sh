@@ -8,10 +8,18 @@ fi
 
 project_dir="$(cd "$(dirname "$0")" && pwd)"
 application_dir="${HOME}/Applications/BlockKeys.app"
-mkdir -p "${application_dir}/Contents/MacOS"
+if /usr/bin/pgrep -f '/Applications/BlockKeys\.app/Contents/MacOS/BlockKeys' >/dev/null; then
+  echo "Quit BlockKeys from its menu before installing, so it can restore the internal keyboard." >&2
+  exit 1
+fi
+
+build_dir="$(mktemp -d)"
+trap 'rm -rf "$build_dir"' EXIT
 swiftc -O -framework AppKit -framework IOKit \
   "${project_dir}"/Sources/*.swift \
-  -o "${application_dir}/Contents/MacOS/BlockKeys"
+  -o "${build_dir}/BlockKeys"
+mkdir -p "${application_dir}/Contents/MacOS"
+/usr/bin/install -m 755 "${build_dir}/BlockKeys" "${application_dir}/Contents/MacOS/BlockKeys"
 cp "${project_dir}/Info.plist" "${application_dir}/Contents/Info.plist"
 codesign --force --sign - "${application_dir}"
 open "${application_dir}"
