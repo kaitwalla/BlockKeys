@@ -32,6 +32,8 @@ hidutil property --matching '{"Built-In":1,"Transport":"FIFO","PrimaryUsagePage"
 
 Restarting macOS also clears `hidutil` mappings. If the menu app crashes while blocking is on, the remapping may persist until the reset command or restart. Vendor-defined function keys, Touch ID, and some nonstandard keys may not be affected.
 
+Normal Quit attempts to clear the keyboard mapping and confirms the empty map with `hidutil` before allowing the app to terminate. If verification fails, BlockKeys stays open and displays an error. This cannot protect against Force Quit, crashes, or power loss; keep the reset command above available.
+
 The device-scoped remapper maps Meh/Hyper sources to intermediary F18/F19 HID keys, which a small event tap interprets. Those two F-keys are reserved while remapping is enabled. The event tap may not behave correctly inside password prompts or Secure Event Input. Disable remapping if shortcuts behave unexpectedly. **Quit Superkey first**, to avoid two apps intercepting the same modifiers.
 
 ## Implementation
