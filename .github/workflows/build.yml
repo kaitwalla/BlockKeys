@@ -8,10 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate installer
-        run: bash -n install.sh
-      - name: Compile app and helper
         run: |
-          clang -fobjc-arc -c Sources/HIDMappingBridge.m -o /tmp/HIDMappingBridge.o
-          swiftc -O -framework AppKit -framework IOKit Sources/*.swift /tmp/HIDMappingBridge.o -o /tmp/BlockKeys
+          bash -n install.sh
+          bash -n Tests/LaunchdMappingProbe.sh
+      - name: Compile app
+        run: |
+          swiftc -O -framework AppKit -framework IOKit Sources/*.swift -o /tmp/BlockKeys
       - name: Validate app plist
         run: plutil -lint Info.plist
