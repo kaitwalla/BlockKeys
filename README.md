@@ -39,7 +39,6 @@ The device-scoped remapper maps Meh/Hyper sources to intermediary F18/F19 HID ke
 ## Implementation
 
 - `Sources/KeyboardController.swift`: HID keyboard discovery and device-specific mapping management.
-- `Sources/HIDMappingBridge.m`: experimental native HID backend, available for debugging with `BLOCKKEYS_USE_NATIVE_HID=1`; not used by default because accepted mappings were ineffective on the tested Mac.
 - `Sources/KeyRemapper.swift`: local keyboard event tap for modifier remaps.
 - `Sources/Configuration.swift`: persisted preferences and key catalog.
 - `Sources/SettingsView.swift`: editable settings window.
